@@ -172,6 +172,7 @@ x, y = getData()
 print(x.shape)
 print(y.shape)
 
+
 print(x[0: (x.shape[0] - 1)][2, 1])
 print(x[0: (x.shape[0] - 1)][2, 2])
 print(x[0: (x.shape[0] - 1)][2, 3])
