@@ -10,8 +10,57 @@ import keras as k
 import sklearn.preprocessing as pre
 
 
+batch_size = 100
+epochs = 10000
+validation_split = 0.1
+lr = 1e-3
+seq_size = 60  # 50ms * 60 = 3s
+loss = k.losses.mae
+
+
+def build_rnn(cell_type=None, isBidirectional=False, isBatchNorm=False, isNoise=False):
+    if cell_type == 'gru':
+        rnn_cell = k.layers.GRU
+    else:
+        rnn_cell = k.layers.LSTM
+
+    def bidirectionalCell(cell, isBidirectional):
+        if isBidirectional:
+            return k.layers.Bidirectional(cell)
+        else:
+            return cell
+
+    def batchNorm(layer, isBatchNorm):
+        if isBatchNorm:
+            return k.layers.BatchNormalization()(layer)
+        else:
+            return layer
+
+    input_data = k.layers.Input((seq_size, x.shape[1]))
+    if isNoise:
+        gaussian_input_data = k.layers.GaussianNoise(0.1)(input_data)
+        cell = batchNorm(bidirectionalCell(rnn_cell(128, return_sequences=True), isBidirectional)(gaussian_input_data), isBatchNorm)
+    else:
+        cell = batchNorm(bidirectionalCell(rnn_cell(128, return_sequences=True), isBidirectional)(input_data), isBatchNorm)
+    cell = batchNorm(bidirectionalCell(rnn_cell(128, return_sequences=True), isBidirectional)(cell), isBatchNorm)
+
+    flatten = k.layers.Flatten()(cell)
+    encode_output = batchNorm(k.layers.Dense(512)(flatten), isBatchNorm)
+    encode_output = k.layers.RepeatVector(seq_size)(encode_output)
+
+    cell = batchNorm(bidirectionalCell(rnn_cell(128, return_sequences=True), isBidirectional)(encode_output), isBatchNorm)
+    cell = batchNorm(bidirectionalCell(rnn_cell(128, return_sequences=True), isBidirectional)(cell), isBatchNorm)
+    decode_output = k.layers.TimeDistributed(k.layers.Dense(1))(cell)
+
+    model = k.models.Model(input_data, decode_output)
+    model.summary()
+
+    model.compile(optimizer=k.optimizers.Nadam(lr=lr), loss=loss, metrics=[k.metrics.mae])
+    return model
+
+
 def getData():
-    reader = csv.DictReader(open('/home/fang/PycharmProjects/experiment/BMWdata1206n.csv'))
+    reader = csv.DictReader(open('C:/Users/fangsw/Desktop/BMW/BMWdata1206n.csv'))
     x = []
     y = []
 
@@ -116,33 +165,22 @@ def getData():
              dmap['dlLaneDistanceToEgoMin'], dmap['sLaneDistanceToEgoMin']])
         y.append(dmap['LaneDistanceToLeftBorder'])
 
-    return np.array(x), np.array(y)
+    return np.array(x)[0: (len(x) - len(x) % seq_size)].reshape((-1, seq_size, 45)), np.array(y)[0: (len(y) - len(y) % seq_size)].reshape((-1, seq_size, 1))
 
 
 x, y = getData()
-print(x.shape[1])
+print(x.shape)
 print(y.shape)
 
-batch_size = 100
-epochs = 10000
-validation_split = 0.2
-
-
-def build_lstm():
-    input_data = k.layers.Input((60, x.shape[1]))
-    lstm_cell = k.layers.LSTM(128, return_sequences=True)(input_data)
-    lstm_cell = k.layers.LSTM(128, return_sequences=True)(lstm_cell)
-    flatten = k.layers.Flatten()(lstm_cell)
-    encode_output = k.layers.Dense(512)(flatten)
-    model = k.models.Model(input_data, output_data)
-    model.summary()
-    model.compile(optimizer=k.optimizers.Adam(lr=1e-3), loss=k.losses.binary_crossentropy, metrics=[k.metrics.mae])
-    return model
-
-
-build_lstm()
+print(x[0: (x.shape[0] - 1)][2, 1])
+print(x[0: (x.shape[0] - 1)][2, 2])
+print(x[0: (x.shape[0] - 1)][2, 3])
+print(y[1: y.shape[0]][1, 1])
+print(y[1: y.shape[0]][1, 2])
+print(y[1: y.shape[0]][1, 3])
 
 
 def train():
-    model = build_lstm()
-    model.fit(x=None, y=None, batch_size=batch_size, epochs=epochs, callbacks=[], validation_split=validation_split)
+    model = build_rnn(cell_type='gru', isBatchNorm=True, isBidirectional=True, isNoise=True)
+    model.fit(x=x[0: (x.shape[0] - 1)], y=y[1: y.shape[0]], batch_size=batch_size, epochs=epochs,
+              callbacks=[], validation_split=validation_split)

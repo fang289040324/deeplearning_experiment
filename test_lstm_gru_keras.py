@@ -11,12 +11,12 @@ x_data = np.linspace(0, 200, num=10000)
 y_data = np.cos(x_data) + 10
 # y_data = np.cos(x_data)
 
-print x_data.shape, y_data.shape
-print x_data[0:10], y_data[10:20]
+print(x_data.shape, y_data.shape)
+print(x_data[0:10], y_data[10:20])
 x_data = x_data.reshape([-1, 10, 1])
 y_data = y_data.reshape([-1, 10, 1])
-print x_data[0:99].shape, y_data[1:100].shape
-print x_data[0], y_data[1]
+print(x_data[0:99].shape, y_data[1:100].shape)
+print(x_data[0], y_data[1])
 
 batch_size = 3000
 lr = 1e-3
@@ -43,7 +43,7 @@ def build_gru():
 
     model = k.models.Model(input_layer, output_layer)
     model.summary()
-    model.compile(optimizer=k.optimizers.Adam(lr=lr), loss=k.losses.mae, metrics=[k.metrics.mae])
+
     return model
 
 
@@ -68,7 +68,7 @@ def build_lstm():
 
     model = k.models.Model(input_layer, output_layer)
     model.summary()
-    model.compile(optimizer=k.optimizers.Adam(lr=lr), loss=k.losses.mae, metrics=[k.metrics.mae])
+
     return model
 
 
@@ -117,13 +117,14 @@ def build_GRU_attention():
 
     model = k.models.Model(input_layer, output_layer)
     model.summary()
-    model.compile(optimizer=k.optimizers.Adam(lr=lr), loss=k.losses.mae, metrics=[k.metrics.mae])
+
     return model
 
 
 def train():
     # gru_model = build_lstm()
     gru_model = build_gru()
+    gru_model.compile(optimizer=k.optimizers.Nadam(lr=lr), loss=k.losses.mae, metrics=[k.metrics.mae])
     gru_model.fit(x=x_data[0:999], y=y_data[1:1000], batch_size=batch_size, epochs=1000, validation_split=0.1,
                   callbacks=[k.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.9, patience=20, verbose=1)])
     return gru_model
