@@ -5,11 +5,15 @@ import keras as k
 import keras.backend as K
 import numpy as np
 import matplotlib.pyplot as plot
+from sklearn import preprocessing as pre
 
 x_data = np.linspace(0, 200, num=10000)
 # x_data *= 10
 y_data = np.cos(x_data) + 10
 # y_data = np.cos(x_data)
+
+x_data = pre.scale(x_data)
+y_data = pre.scale(y_data)
 
 print(x_data.shape, y_data.shape)
 print(x_data[0:10], y_data[10:20])
@@ -19,12 +23,13 @@ print(x_data[0:99].shape, y_data[1:100].shape)
 print(x_data[0], y_data[1])
 
 batch_size = 3000
-lr = 1e-3
+lr = 1e-2
+epoch = 1000
 
 
 def build_gru():
     input_layer = k.layers.Input((10, 1))
-    gru_cell = k.layers.Bidirectional(k.layers.GRU(256, return_sequences=True))(input_layer)
+    gru_cell = k.layers.Bidirectional(k.layers.GRU(32, return_sequences=True))(input_layer)
     batchNorm = k.layers.BatchNormalization()(gru_cell)
 
     # gru_cell = k.layers.Bidirectional(k.layers.LSTM(256, return_sequences=True))(gru_cell)
@@ -32,12 +37,13 @@ def build_gru():
     # output_layer = k.layers.LSTM(1, return_sequences=True)(gru_cell)
 
     flatten = k.layers.Flatten()(batchNorm)
-    encode_output = k.layers.Dense(512)(flatten)
+    encode_output = k.layers.Dense(128, activation='elu')(flatten)
+    # encode_output = k.layers.PReLU()(encode_output)
     batchNorm = k.layers.BatchNormalization()(encode_output)
     encode_output = k.layers.RepeatVector(10)(batchNorm)
     batchNorm = k.layers.BatchNormalization()(encode_output)
 
-    gru_cell = k.layers.Bidirectional(k.layers.GRU(256, return_sequences=True))(batchNorm)
+    gru_cell = k.layers.Bidirectional(k.layers.GRU(32, return_sequences=True))(batchNorm)
     batchNorm = k.layers.BatchNormalization()(gru_cell)
     output_layer = k.layers.TimeDistributed(k.layers.Dense(1))(batchNorm)
 
@@ -124,8 +130,8 @@ def build_GRU_attention():
 def train():
     # gru_model = build_lstm()
     gru_model = build_gru()
-    gru_model.compile(optimizer=k.optimizers.Nadam(lr=lr), loss=k.losses.mae, metrics=[k.metrics.mae])
-    gru_model.fit(x=x_data[0:999], y=y_data[1:1000], batch_size=batch_size, epochs=1000, validation_split=0.1,
+    gru_model.compile(optimizer=k.optimizers.Adam(lr=lr), loss=k.losses.mae, metrics=[k.metrics.mae])
+    gru_model.fit(x=x_data[0:999], y=y_data[1:1000], batch_size=batch_size, epochs=epoch, validation_split=0.1,
                   callbacks=[k.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.9, patience=20, verbose=1)])
     return gru_model
 
