@@ -5,7 +5,7 @@ import keras as k
 import numpy as np
 import matplotlib.pyplot as plot
 
-model = k.models.load_model('model/bmw/checkpoint/model_32-1110-0.12.hdf5')
+model = k.models.load_model('model/bmw/checkpoint/model_32_noise-1514-0.25.hdf5')
 # model = k.models.load_model('model-3499-0.28.hdf5')
 # model = k.models.load_model('model_128-499-0.28.hdf5')
 
