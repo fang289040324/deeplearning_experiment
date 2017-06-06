@@ -50,21 +50,21 @@ def build_gru():
 def build_lstm():
     input_layer = k.layers.Input((10, 1))
     gru_cell = k.layers.Bidirectional(k.layers.LSTM(256, return_sequences=True))(input_layer)
-    batchNorm = k.layers.BatchNormalization()(gru_cell)
+    gru_cell = k.layers.BatchNormalization()(gru_cell)
 
     # gru_cell = k.layers.Bidirectional(k.layers.LSTM(256, return_sequences=True))(gru_cell)
     # gru_cell = k.layers.Bidirectional(k.layers.LSTM(256, return_sequences=True))(gru_cell)
     # output_layer = k.layers.LSTM(1, return_sequences=True)(gru_cell)
 
-    flatten = k.layers.Flatten()(batchNorm)
+    flatten = k.layers.Flatten()(gru_cell)
     encode_output = k.layers.Dense(512)(flatten)
-    batchNorm = k.layers.BatchNormalization()(encode_output)
-    encode_output = k.layers.RepeatVector(10)(batchNorm)
+    encode_output = k.layers.BatchNormalization()(encode_output)
+    encode_output = k.layers.RepeatVector(10)(encode_output)
     batchNorm = k.layers.BatchNormalization()(encode_output)
 
     gru_cell = k.layers.Bidirectional(k.layers.LSTM(256, return_sequences=True))(batchNorm)
-    batchNorm = k.layers.BatchNormalization()(gru_cell)
-    output_layer = k.layers.TimeDistributed(k.layers.Dense(1))(batchNorm)
+    gru_cell = k.layers.BatchNormalization()(gru_cell)
+    output_layer = k.layers.TimeDistributed(k.layers.Dense(1))(gru_cell)
 
     model = k.models.Model(input_layer, output_layer)
     model.summary()
@@ -122,10 +122,10 @@ def build_GRU_attention():
 
 
 def train():
-    # gru_model = build_lstm()
-    gru_model = build_gru()
+    gru_model = build_lstm()
+    # gru_model = build_gru()
     gru_model.compile(optimizer=k.optimizers.Nadam(lr=lr), loss=k.losses.mae, metrics=[k.metrics.mae])
-    gru_model.fit(x=x_data[0:999], y=y_data[1:1000], batch_size=batch_size, epochs=1000, validation_split=0.1,
+    gru_model.fit(x=x_data[0:999], y=y_data[1:1000], batch_size=batch_size, epochs=100000, validation_split=0.1,
                   callbacks=[k.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.9, patience=20, verbose=1)])
     return gru_model
 
