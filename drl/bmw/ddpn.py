@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import gym
+from env import Env
 
 np.random.seed(1)
 tf.set_random_seed(1)
@@ -17,8 +17,6 @@ MEMORY_CAPACITY = 7000
 BATCH_SIZE = 32
 
 RENDER = False
-OUTPUT_GRAPH = True
-ENV_NAME = 'Pendulum-v0'
 
 
 class Actor(object):
@@ -42,10 +40,13 @@ class Actor(object):
         with tf.variable_scope(scope):
             init_w = tf.random_normal_initializer(0., 0.3)
             init_b = tf.constant_initializer(0.1)
-            net = tf.layers.dense(s, 30, activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='l1', trainable=trainable)
+            net = tf.layers.dense(s, 30, activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b,
+                                  name='l1', trainable=trainable)
             with tf.variable_scope('a'):
-                actions = tf.layers.dense(net, self.a_dim, activation=tf.nn.tanh, kernel_initializer=init_w, bias_initializer=init_b, name='a', trainable=trainable)
-                scaled_a = tf.multiply(actions, self.action_bound, name='scaled_a')  # Scale output to -action_bound to action_bound
+                actions = tf.layers.dense(net, self.a_dim, activation=tf.nn.tanh, kernel_initializer=init_w,
+                                          bias_initializer=init_b, name='a', trainable=trainable)
+                scaled_a = tf.multiply(actions, self.action_bound,
+                                       name='scaled_a')  # Scale output to -action_bound to action_bound
         return scaled_a
 
     def learn(self, s):
@@ -149,12 +150,12 @@ class Memory(object):
         return self.data[indices, :]
 
 
-env = gym.make(ENV_NAME)
-env = env.unwrapped
-env.seed(1)
+# TODO
+# def train(weigth):
+env = Env(None)
 
-state_dim = env.observation_space.shape[0]
-action_dim = env.action_space.shape[0]
+state_dim = env.observation_space
+action_dim = env.action_space
 action_bound = env.action_space.high
 
 # all placeholder for tf
@@ -176,9 +177,6 @@ actor.add_grad_to_graph(critic.a_grads)
 sess.run(tf.global_variables_initializer())
 
 M = Memory(MEMORY_CAPACITY, dims=2 * state_dim + action_dim + 1)
-
-if OUTPUT_GRAPH:
-    tf.summary.FileWriter("logs/", sess.graph)
 
 var = 3
 

@@ -10,14 +10,14 @@ class Env(object):
         x_aux_reshape = x_aux.reshape([-1, 15])
         self.result = np.concatenate([x_main_reshape, x_aux_reshape], axis=1)
         self.weights = weights
+        self.action_dim = 2
 
     def reset(self):
         return self.result[0]
 
     """
-        a (YawAbs, VelocityAbs)
+    a (YawAbs, VelocityAbs)
     """
-
     def step(self, a):
         velocitys = self.result[:, 0].reshape([-1, 1])
         yaws = self.result[:, 3].reshape([-1, 1])
@@ -30,6 +30,12 @@ class Env(object):
         done = None
 
         return state, reward, done
+
+    def observation_space(self):
+        return len(self.result[0])
+
+    def action_space(self):
+        return self.action_dim
 
 
 if __name__ == '__main__':
