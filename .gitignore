@@ -2,3 +2,7 @@
 /data/
 /model/
 /logs/
+/drl/Keras-FlappyBird-master.zip
+/.gitignore
+/drl/model.h5
+/drl/model.json
