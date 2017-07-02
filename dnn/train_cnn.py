@@ -21,7 +21,6 @@ sess = tf.Session(config=config)
 
 
 def build_model(isBidirectional, isBatchNorm, isDropout):
-
     def bidirectionalCell(cell, isBidirectional):
         name = cell.name + '_bidi'
         if isBidirectional:
@@ -73,11 +72,16 @@ def build_model(isBidirectional, isBatchNorm, isDropout):
     reshape = k.layers.Reshape((-1, 20))(conv)
     permute = k.layers.Permute((2, 1))(reshape)
 
-    cell = dropout(batchNorm(bidirectionalCell(k.layers.LSTM(cell_size, return_sequences=True, kernel_regularizer=k.regularizers.l2(0.001),
-                                                             activity_regularizer=k.regularizers.l2(0.001)), isBidirectional)(permute), isBatchNorm), isDropout)
-    cell = dropout(batchNorm(bidirectionalCell(k.layers.LSTM(cell_size, return_sequences=True, kernel_regularizer=k.regularizers.l2(0.001),
-                                                             activity_regularizer=k.regularizers.l2(0.001)), isBidirectional)(cell), isBatchNorm), isDropout)
-    cell = batchNorm(k.layers.LSTM(1, return_sequences=True, kernel_regularizer=k.regularizers.l2(0.001))(cell), isBatchNorm)
+    cell = dropout(batchNorm(
+        bidirectionalCell(k.layers.LSTM(cell_size, return_sequences=True, kernel_regularizer=k.regularizers.l2(0.001),
+                                        activity_regularizer=k.regularizers.l2(0.001)), isBidirectional)(permute),
+        isBatchNorm), isDropout)
+    cell = dropout(batchNorm(
+        bidirectionalCell(k.layers.LSTM(cell_size, return_sequences=True, kernel_regularizer=k.regularizers.l2(0.001),
+                                        activity_regularizer=k.regularizers.l2(0.001)), isBidirectional)(cell),
+        isBatchNorm), isDropout)
+    cell = batchNorm(k.layers.LSTM(1, return_sequences=True, kernel_regularizer=k.regularizers.l2(0.001))(cell),
+                     isBatchNorm)
 
     model = k.models.Model(input_layer, cell)
     model.summary()
@@ -94,8 +98,10 @@ def train():
         print('not model!')
     model.fit(x=x, y=y, batch_size=batch_size, epochs=epochs,
               callbacks=[k.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.9, patience=10, verbose=1, cooldown=50),
-                  k.callbacks.ModelCheckpoint(filepath='./model/bmw/checkpoint/cnn_rnn_l2-{epoch:02d}-val_loss_{val_loss:.2f}-loss_{loss:.2f}.hdf5', verbose=1, period=600, save_best_only=False, mode='min'),
-                  k.callbacks.TensorBoard(histogram_freq=50, write_graph=True, write_images=False)],
+                         k.callbacks.ModelCheckpoint(
+                             filepath='./model/bmw/checkpoint/cnn_rnn_l2-{epoch:02d}-val_loss_{val_loss:.2f}-loss_{loss:.2f}.hdf5',
+                             verbose=1, period=600, save_best_only=False, mode='min'),
+                         k.callbacks.TensorBoard(histogram_freq=50, write_graph=True, write_images=False)],
               validation_split=validation_split, shuffle=False)
 
 
