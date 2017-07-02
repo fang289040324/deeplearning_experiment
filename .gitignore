@@ -6,3 +6,4 @@
 /.gitignore
 /drl/model.h5
 /drl/model.json
+/drl/logs/

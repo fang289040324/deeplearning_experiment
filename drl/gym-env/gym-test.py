@@ -6,17 +6,18 @@ import time
 
 # env = gym.make('CartPole-v1')
 # env = gym.make('MountainCar-v0')
-env = gym.make('Enduro-v4')
+# env = gym.make('Enduro-v4')
+env = gym.make('Pendulum-v0')
 for i in range(20):
     observation = env.reset()
-    for j in range(100):
+    for j in range(100000):
         start_t = time.time()
         env.render()
-        print(observation)
+        print('observation: ', observation)
         action = env.action_space.sample()
-        print(action)
+        print('action: ', action)
         observation, reward, done, info = env.step(action)
-        print(reward)
+        print('reward: ', reward)
         print('cost time: ', (time.time() - start_t))
         if done:
             print("Episode finished after {} timesteps".format(j + 1))
