@@ -16,6 +16,10 @@ REPLACE_ITER_C = 300
 MEMORY_CAPACITY = 7000
 BATCH_SIZE = 32
 
+S = None
+R = None
+S_ = None
+
 RENDER = False
 
 
@@ -30,7 +34,6 @@ class Actor(object):
 
         with tf.variable_scope('Actor'):
             self.a = self._build_net(S, scope='eval_net', trainable=True)
-
             self.a_ = self._build_net(S_, scope='target_net', trainable=False)
 
         self.e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Actor/eval_net')
@@ -40,13 +43,10 @@ class Actor(object):
         with tf.variable_scope(scope):
             init_w = tf.random_normal_initializer(0., 0.3)
             init_b = tf.constant_initializer(0.1)
-            net = tf.layers.dense(s, 30, activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b,
-                                  name='l1', trainable=trainable)
+            net = tf.layers.dense(s, 30, activation=tf.nn.relu, kernel_initializer=init_w, bias_initializer=init_b, name='l1', trainable=trainable)
             with tf.variable_scope('a'):
-                actions = tf.layers.dense(net, self.a_dim, activation=tf.nn.tanh, kernel_initializer=init_w,
-                                          bias_initializer=init_b, name='a', trainable=trainable)
-                scaled_a = tf.multiply(actions, self.action_bound,
-                                       name='scaled_a')  # Scale output to -action_bound to action_bound
+                actions = tf.layers.dense(net, self.a_dim, activation=tf.nn.tanh, kernel_initializer=init_w, bias_initializer=init_b, name='a', trainable=trainable)
+                scaled_a = tf.multiply(actions, self.action_bound, name='scaled_a')
         return scaled_a
 
     def learn(self, s):
@@ -84,7 +84,6 @@ class Critic(object):
         self.t_replace_counter = 0
 
         with tf.variable_scope('Critic'):
-            # Input (s, a), output q
             self.a = a
             self.q = self._build_net(S, self.a, 'eval_net', trainable=True)
 
@@ -140,7 +139,7 @@ class Memory(object):
 
     def store_transition(self, s, a, r, s_):
         transition = np.hstack((s, a, [r], s_))
-        index = self.pointer % self.capacity  # replace the old memory with new memory
+        index = self.pointer % self.capacity
         self.data[index, :] = transition
         self.pointer += 1
 
@@ -150,67 +149,69 @@ class Memory(object):
         return self.data[indices, :]
 
 
-# TODO
-# def train(weigth):
-env = Env(None)
+def train(w):
+    global RENDER, S, R, S_
+    env = Env(w)
 
-state_dim = env.observation_space
-action_dim = env.action_space
-action_bound = env.action_space.high
+    state_dim = env.observation_space()
+    action_dim = env.action_space()
+    action_bound = env.action_bound()
 
-# all placeholder for tf
-with tf.name_scope('S'):
-    S = tf.placeholder(tf.float32, shape=[None, state_dim], name='s')
-with tf.name_scope('R'):
-    R = tf.placeholder(tf.float32, [None, 1], name='r')
-with tf.name_scope('S_'):
-    S_ = tf.placeholder(tf.float32, shape=[None, state_dim], name='s_')
+    with tf.name_scope('S'):
+        S = tf.placeholder(tf.float32, shape=[None, state_dim], name='s')
+    with tf.name_scope('R'):
+        R = tf.placeholder(tf.float32, [None, 1], name='r')
+    with tf.name_scope('S_'):
+        S_ = tf.placeholder(tf.float32, shape=[None, state_dim], name='s_')
 
-sess = tf.Session()
+    sess = tf.Session()
 
-# Create actor and critic.
-# They are actually connected to each other, details can be seen in tensorboard or in this picture:
-actor = Actor(sess, action_dim, action_bound, LR_A, REPLACE_ITER_A)
-critic = Critic(sess, state_dim, action_dim, LR_C, GAMMA, REPLACE_ITER_C, actor.a, actor.a_)
-actor.add_grad_to_graph(critic.a_grads)
+    actor = Actor(sess, action_dim, action_bound, LR_A, REPLACE_ITER_A)
+    critic = Critic(sess, state_dim, action_dim, LR_C, GAMMA, REPLACE_ITER_C, actor.a, actor.a_)
+    actor.add_grad_to_graph(critic.a_grads)
 
-sess.run(tf.global_variables_initializer())
+    sess.run(tf.global_variables_initializer())
 
-M = Memory(MEMORY_CAPACITY, dims=2 * state_dim + action_dim + 1)
+    M = Memory(MEMORY_CAPACITY, dims=2 * state_dim + action_dim + 1)
 
-var = 3
+    var = 3
 
-for i in range(MAX_EPISODES):
-    s = env.reset()
-    ep_reward = 0
+    for i in range(MAX_EPISODES):
+        s = env.reset()
+        print(s)
+        ep_reward = 0
 
-    for j in range(MAX_EP_STEPS):
+        for j in range(MAX_EP_STEPS):
 
-        if RENDER:
-            env.render()
+            if RENDER:
+                env.render()
 
-        a = actor.choose_action(s)
-        a = np.clip(np.random.normal(a, var), -2, 2)
-        s_, r, done, info = env.step(a)
+            a = actor.choose_action(s)
+            a = np.clip(np.random.normal(a, var), -2, 2)
+            print('a: ', a)
+            s_, r, done = env.step(a)
 
-        M.store_transition(s, a, r / 10, s_)
+            M.store_transition(s, a, r / 10, s_)
+            print(M.pointer)
+            if M.pointer > MEMORY_CAPACITY:
+                var *= .9995
+                b_M = M.sample(BATCH_SIZE)
+                b_s = b_M[:, :state_dim]
+                b_a = b_M[:, state_dim: state_dim + action_dim]
+                b_r = b_M[:, -state_dim - 1: -state_dim]
+                b_s_ = b_M[:, -state_dim:]
 
-        if M.pointer > MEMORY_CAPACITY:
-            var *= .9995
-            b_M = M.sample(BATCH_SIZE)
-            b_s = b_M[:, :state_dim]
-            b_a = b_M[:, state_dim: state_dim + action_dim]
-            b_r = b_M[:, -state_dim - 1: -state_dim]
-            b_s_ = b_M[:, -state_dim:]
+                critic.learn(b_s, b_a, b_r, b_s_)
+                actor.learn(b_s)
 
-            critic.learn(b_s, b_a, b_r, b_s_)
-            actor.learn(b_s)
+            s = s_
+            ep_reward += r
 
-        s = s_
-        ep_reward += r
+            if j == MAX_EP_STEPS - 1:
+                print('Episode:', i, ' Reward: %i' % int(ep_reward), 'Explore: %.2f' % var,)
+                if ep_reward > -1000:
+                    RENDER = True
+                break
 
-        if j == MAX_EP_STEPS - 1:
-            print('Episode:', i, ' Reward: %i' % int(ep_reward), 'Explore: %.2f' % var,)
-            if ep_reward > -1000:
-                RENDER = True
-            break
+if __name__ == '__main__':
+    train(np.ones([39, ]))
