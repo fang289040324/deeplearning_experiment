@@ -149,6 +149,12 @@ class Memory(object):
         return self.data[indices, :]
 
 
+class OU(object):
+    @staticmethod
+    def function(x, mu, theta, sigma):
+        return theta * (mu - x) + sigma * np.random.randn(1)
+
+
 def train(w):
     global RENDER, S, R, S_
     env = Env(w)
@@ -187,7 +193,8 @@ def train(w):
                 env.render()
 
             a = actor.choose_action(s)
-            a = np.clip(np.random.normal(a, var), -2, 2)
+            # a = np.clip(np.random.normal(a, var), -2, 2)
+            OU.function(a, 0.0, 0.60, 0.30)
             print('a: ', a)
             s_, r, done = env.step(a)
 
