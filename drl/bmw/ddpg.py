@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+# coding=utf-8
 import tensorflow as tf
 import numpy as np
 from env import Env
+import time
 
 np.random.seed(1)
 tf.set_random_seed(1)
@@ -31,6 +34,7 @@ class Actor(object):
         self.lr = learning_rate
         self.t_replace_iter = t_replace_iter
         self.t_replace_counter = 0
+        self.saver = tf.train.Saver()
 
         with tf.variable_scope('Actor'):
             self.a = self._build_net(S, scope='eval_net', trainable=True)
@@ -69,8 +73,14 @@ class Actor(object):
             self.policy_grads = tf.gradients(ys=self.a, xs=self.e_params, grad_ys=a_grads)
 
         with tf.variable_scope('A_train'):
-            opt = tf.train.AdamOptimizer(-self.lr)  # (- learning rate) for ascent policy
+            opt = tf.train.AdamOptimizer(-self.lr)
             self.train_op = opt.apply_gradients(zip(self.policy_grads, self.e_params))
+
+    def save(self):
+        self.saver.save(self.sess, 'drl/bmw/model/Actor' + str(time.time()) + '.model')
+
+    def load(self, path):
+        self.saver.restore(self.sess, path)
 
 
 class Critic(object):
@@ -82,14 +92,14 @@ class Critic(object):
         self.gamma = gamma
         self.t_replace_iter = t_replace_iter
         self.t_replace_counter = 0
+        self.saver = tf.train.Saver()
 
         with tf.variable_scope('Critic'):
             self.a = a
             self.q = self._build_net(S, self.a, 'eval_net', trainable=True)
 
             # Input (s_, a_), output q_ for q_target
-            self.q_ = self._build_net(S_, a_, 'target_net',
-                                      trainable=False)
+            self.q_ = self._build_net(S_, a_, 'target_net', trainable=False)
 
             self.e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Critic/eval_net')
             self.t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Critic/target_net')
@@ -119,8 +129,7 @@ class Critic(object):
                 net = tf.nn.relu(tf.matmul(s, w1_s) + tf.matmul(a, w1_a) + b1)
 
             with tf.variable_scope('q'):
-                q = tf.layers.dense(net, 1, kernel_initializer=init_w, bias_initializer=init_b,
-                                    trainable=trainable)
+                q = tf.layers.dense(net, 1, kernel_initializer=init_w, bias_initializer=init_b, trainable=trainable)
         return q
 
     def learn(self, s, a, r, s_):
@@ -129,6 +138,12 @@ class Critic(object):
         if self.t_replace_counter % self.t_replace_iter == 0:
             self.sess.run([tf.assign(t, e) for t, e in zip(self.t_params, self.e_params)])
         self.t_replace_counter += 1
+
+    def save(self):
+        self.saver.save(self.sess, 'drl/bmw/model/Actor' + str(time.time()) + '.model')
+
+    def load(self, path):
+        self.saver.restore(self.sess, path)
 
 
 class Memory(object):
@@ -144,7 +159,6 @@ class Memory(object):
         self.pointer += 1
 
     def sample(self, n):
-        assert self.pointer >= self.capacity, 'Memory has not been fulfilled'
         indices = np.random.choice(self.capacity, size=n)
         return self.data[indices, :]
 
@@ -152,6 +166,13 @@ class Memory(object):
 class OU(object):
     @staticmethod
     def function(x, mu, theta, sigma):
+        """
+        :param x: 原始值
+        :param mu: 回归值，回归程度根据theta的大小而确定
+        :param theta: 回归程度 0-1
+        :param sigma: 离散度
+        :return:
+        """
         return theta * (mu - x) + sigma * np.random.randn(1)
 
 
@@ -181,44 +202,65 @@ def train(w):
     M = Memory(MEMORY_CAPACITY, dims=2 * state_dim + action_dim + 1)
 
     var = 3
+    epsilon = 1
 
     for i in range(MAX_EPISODES):
         s = env.reset()
-        print(s)
         ep_reward = 0
 
+        a_t = np.zeros([action_dim])
+
         for j in range(MAX_EP_STEPS):
+            start = time.time()
 
             if RENDER:
                 env.render()
 
-            a = actor.choose_action(s)
-            # a = np.clip(np.random.normal(a, var), -2, 2)
-            OU.function(a, 0.0, 0.60, 0.30)
-            print('a: ', a)
-            s_, r, done = env.step(a)
+            # a = actor.choose_action(s)
+            # print('a: ', a)
+            #
+            # # a = np.clip(np.random.normal(a, var), -2, 2)
+            # noise_0 = max(epsilon, 0) * OU.function(a[0], 0.0, 0.6, 0.3)
+            # noise_1 = max(epsilon, 0) * OU.function(a[1], 0.5, 0.4, 0.1)
+            #
+            # a_t[0] = a[0] + noise_0
+            # a_t[1] = a[1] + noise_1
+            # print('a_t: ', a_t)
+            #
+            # s_, r, done = env.step(a_t)
+            #
+            # M.store_transition(s, a_t, r, s_)
+            # print(M.pointer)
 
-            M.store_transition(s, a, r / 10, s_)
+            env.get_memory(M)
             print(M.pointer)
+
             if M.pointer > MEMORY_CAPACITY:
-                var *= .9995
+                # var *= .9995
+                epsilon -= 1.0 / 100000
+
                 b_M = M.sample(BATCH_SIZE)
                 b_s = b_M[:, :state_dim]
                 b_a = b_M[:, state_dim: state_dim + action_dim]
                 b_r = b_M[:, -state_dim - 1: -state_dim]
                 b_s_ = b_M[:, -state_dim:]
 
+                # print(b_a)
+                # print(b_r)
+
                 critic.learn(b_s, b_a, b_r, b_s_)
                 actor.learn(b_s)
 
-            s = s_
-            ep_reward += r
+            # s = s_
+            # ep_reward += r
 
-            if j == MAX_EP_STEPS - 1:
-                print('Episode:', i, ' Reward: %i' % int(ep_reward), 'Explore: %.2f' % var,)
-                if ep_reward > -1000:
-                    RENDER = True
-                break
+            # if j == MAX_EP_STEPS - 1:
+            #     print('Episode:', i, ' Reward: %i' % int(ep_reward), 'Explore: %.2f' % var,)
+            #     if ep_reward > -1000:
+            #         RENDER = True
+            #     break
+
+            print('time:', (time.time() - start))
 
 if __name__ == '__main__':
-    train(np.ones([39, ]))
+    train(np.zeros([39, ]))

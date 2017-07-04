@@ -1,16 +1,17 @@
-import tensorflow as tf
-import keras as k
+import numpy as np
 
-state = tf.Variable(0)
-one = tf.constant(1)
 
-new_val = tf.add(state, one)
+class OU(object):
+    @staticmethod
+    def function(x, mu, theta, sigma):
+        return theta * (mu - x) + sigma * np.random.randn(1)
 
-update = tf.assign(state, new_val)
 
-with tf.Session() as sess:
-    init = tf.initialize_all_variables()
-    sess.run(init)
-    for _ in range(4):
-        sess.run(update)
-        print(state.eval())
+x = -1
+x_t = 0
+
+for _ in range(1000):
+    noise = OU.function(x, 0, 1, 0.3)
+    print('noise: ', noise)
+    x_t = x + noise
+    print('x_t: ', x_t)

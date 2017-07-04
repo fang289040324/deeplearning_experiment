@@ -41,7 +41,6 @@ def train_net(model, params, weights, path, trainFrames, i):
 
     # Run the frames.
     while t < train_frames:
-
         t += 1
         car_distance += 1
 
@@ -75,10 +74,7 @@ def train_net(model, params, weights, path, trainFrames, i):
 
             # Train the model on this batch.
             history = LossHistory()
-            model.fit(
-                X_train, y_train, batch_size=batchSize,
-                nb_epoch=1, verbose=0, callbacks=[history]
-            )
+            model.fit(X_train, y_train, batch_size=batchSize, nb_epoch=1, verbose=0, callbacks=[history])
             loss_log.append(history.losses)
 
         # Update the starting state with S'.
@@ -111,9 +107,7 @@ def train_net(model, params, weights, path, trainFrames, i):
 
         # Save the model
         if t % train_frames == 0:
-            model.save_weights('saved-models_' + path + '/evaluatedPolicies/' + str(i) + '-' + filename + '-' +
-                               str(t) + '.h5',
-                               overwrite=True)
+            model.save_weights('saved-models_' + path + '/evaluatedPolicies/' + str(i) + '-' + filename + '-' + str(t) + '.h5', overwrite=True)
             print("Saving model %s - %d" % (filename, t))
 
     # Log results after we're done all frames.
@@ -169,25 +163,24 @@ def process_minibatch(minibatch, model):
     return X_train, y_train
 
 
-def params_to_filename(params):
-    return str(params['nn'][0]) + '-' + str(params['nn'][1]) + '-' + \
-           str(params['batchSize']) + '-' + str(params['buffer'])
+# def params_to_filename(params):
+#     return str(params['nn'][0]) + '-' + str(params['nn'][1]) + '-' + str(params['batchSize']) + '-' + str(params['buffer'])
 
 
-def launch_learn(params):
-    filename = params_to_filename(params)
-    print("Trying %s" % filename)
-    # Make sure we haven't run this one.
-    if not os.path.isfile('results/sonar-frames/loss_data-' + filename + '.csv'):
-        # Create file so we don't double test when we run multiple
-        # instances of the script at the same time.
-        open('results/sonar-frames/loss_data-' + filename + '.csv', 'a').close()
-        print("Starting test.")
-        # Train.
-        model = neural_net(NUM_INPUT, params['nn'])
-        train_net(model, params)
-    else:
-        print("Already tested.")
+# def launch_learn(params):
+#     filename = params_to_filename(params)
+#     print("Trying %s" % filename)
+#     # Make sure we haven't run this one.
+#     if not os.path.isfile('results/sonar-frames/loss_data-' + filename + '.csv'):
+#         # Create file so we don't double test when we run multiple
+#         # instances of the script at the same time.
+#         open('results/sonar-frames/loss_data-' + filename + '.csv', 'a').close()
+#         print("Starting test.")
+#         # Train.
+#         model = neural_net(NUM_INPUT, params['nn'])
+#         train_net(model, params)
+#     else:
+#         print("Already tested.")
 
 
 def IRL_helper(weights, path, trainFrames, i):

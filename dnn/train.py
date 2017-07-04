@@ -60,7 +60,8 @@ def build_rnn(cell_type=None, isBidirectional=False, isBatchNorm=False, isNoise=
             bidirectionalCell(rnn_cell(cell_size, return_sequences=True, name='cell_main_1'), isBidirectional)(
                 input_main_data), isBatchNorm), isDropout)
 
-    aux_output = dropout(batchNorm(k.layers.TimeDistributed(k.layers.Dense(1, name='aux_output'))(cell_main), isBatchNorm), isDropout)
+    aux_output = dropout(
+        batchNorm(k.layers.TimeDistributed(k.layers.Dense(1, name='aux_output'))(cell_main), isBatchNorm), isDropout)
 
     if isNoise:
         gaussian_input_aux_data = k.layers.GaussianNoise(0.1)(input_aux_data)
@@ -82,10 +83,13 @@ def build_rnn(cell_type=None, isBidirectional=False, isBatchNorm=False, isNoise=
         isBatchNorm), isDropout)
 
     flatten = k.layers.Flatten(name='flatten')(cell)
-    encode_output = dropout(batchNorm(k.layers.Dense(h_size, name='dnn_all_1', activation='tanh')(flatten), isBatchNorm), False)
+    encode_output = dropout(
+        batchNorm(k.layers.Dense(h_size, name='dnn_all_1', activation='tanh')(flatten), isBatchNorm), False)
     encode_output = k.layers.RepeatVector(seq_size, name='encode_output')(encode_output)
 
-    aux_output1 = dropout(batchNorm(k.layers.TimeDistributed(k.layers.Dense(1, name='aux_output'))(encode_output), isBatchNorm), isDropout)
+    aux_output1 = dropout(
+        batchNorm(k.layers.TimeDistributed(k.layers.Dense(1, name='aux_output'))(encode_output), isBatchNorm),
+        isDropout)
 
     cell = dropout(batchNorm(
         bidirectionalCell(rnn_cell(cell_size, return_sequences=True, name='decode_layer_1'), isBidirectional)(
@@ -94,7 +98,8 @@ def build_rnn(cell_type=None, isBidirectional=False, isBatchNorm=False, isNoise=
     cell = dropout(batchNorm(
         bidirectionalCell(rnn_cell(cell_size, return_sequences=True, name='decode_layer_2'), isBidirectional)(cell),
         isBatchNorm), isDropout)
-    decode_output = dropout(batchNorm(k.layers.TimeDistributed(k.layers.Dense(1, name='decode_output'))(cell), isBatchNorm), isDropout)
+    decode_output = dropout(
+        batchNorm(k.layers.TimeDistributed(k.layers.Dense(1, name='decode_output'))(cell), isBatchNorm), isDropout)
 
     model = k.models.Model([input_main_data, input_aux_data], [decode_output, aux_output, aux_output1])
     model.summary()
