@@ -30,7 +30,7 @@ def train(train_indicator=1):
 
     EXPLORE = 100000.
     episode_count = 1000
-    max_steps = 200000
+    max_steps = 2000
     reward = 0
     done = False
     step = 0
