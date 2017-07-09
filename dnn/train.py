@@ -52,9 +52,7 @@ def build_rnn(cell_type=None, isBidirectional=False, isBatchNorm=False, isNoise=
 
     if isNoise:
         gaussian_input_main_data = k.layers.GaussianNoise(0.1, name='gaussian_main')(input_main_data)
-        cell_main = dropout(batchNorm(
-            bidirectionalCell(rnn_cell(cell_size, return_sequences=True, name='cell_main_1'), isBidirectional)(
-                gaussian_input_main_data), isBatchNorm), isDropout)
+        cell_main = dropout(batchNorm(bidirectionalCell(rnn_cell(cell_size, return_sequences=True, name='cell_main_1'), isBidirectional)(gaussian_input_main_data), isBatchNorm), isDropout)
     else:
         cell_main = dropout(batchNorm(
             bidirectionalCell(rnn_cell(cell_size, return_sequences=True, name='cell_main_1'), isBidirectional)(

@@ -24,13 +24,12 @@ class Env(object):
     """
     def step(self, a):
         result = self.result
-        print(result.shape)
         velocitys = result[:, 0].reshape([-1, 1])
         yaws = result[:, 3].reshape([-1, 1])
 
-        A = np.concatenate([yaws, velocitys], axis=1)
+        A = np.concatenate([velocitys, yaws], axis=1)
         A = A.astype(np.float64)
-        print('A:', A[0])
+        # print('A:', A[0])
         a_index = np.argwhere((A == a).all(1))
         if a_index.shape[0]:
             state = result[a_index + 1]
@@ -42,26 +41,13 @@ class Env(object):
         return state, reward, done
 
     def get_memory(self, m):
-        # if self.index + self.n <= self.result.shape[0]:
-        #     self.sub_result = self.result[self.index: self.index + self.n]
-        #     self.index += 1
-        # elif self.index < self.result.shape[0]:
-        #     self.sub_result = self.result[self.index:]
-        # else:
-        #     self.index = 0
-        #     self.sub_result = self.result[self.index: self.index + self.n]
-        #     self.index += self.n
-        #
-        # for i in range(self.sub_result.shape[0] - 1):
-        #     d = self.sub_result[i]
-        #     s_ = self.sub_result[i + 1]
-        #     m.store_transition(d, np.array([d[0], d[3]]), np.dot(self.weights, d), s_)
-
         d = self.result[self.index]
+        # print(np.dot(self.weights, d))
         self.index += 1
-        if self.index >= self.result.shape[0]:
+        if self.index + 1 >= self.result.shape[0]:
             self.index = 0
-        m.store_transition(d, np.array([d[0], d[3]]), np.dot(self.weights, d), self.result[self.index + 1])
+
+        m.add(d, np.array([d[0], d[3]]), np.dot(self.weights, d), self.result[self.index + 1], None)
 
     def observation_space(self):
         return self.result.shape[-1]
@@ -73,7 +59,7 @@ class Env(object):
         pass
 
     def action_bound(self):
-        # TODO
+        # TODO 未用到
         return 1
 
 
